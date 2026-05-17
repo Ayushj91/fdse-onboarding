@@ -1,0 +1,58 @@
+{
+  "mappings": [
+    {
+      "name": "CRM - Search customer by email (found)",
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/customers",
+        "queryParameters": {
+          "email": {
+            "matches": ".*@.*"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "id": "crm-existing-001",
+          "email": "{{request.query.email}}",
+          "firstName": "Existing",
+          "lastName": "Customer"
+        },
+        "transformers": ["response-template"]
+      },
+      "priority": 5
+    },
+    {
+      "name": "CRM - Create customer (success)",
+      "request": {
+        "method": "POST",
+        "urlPath": "/customers"
+      },
+      "response": {
+        "status": 201,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "id": "crm-new-{{randomValue type='UUID'}}",
+          "status": "created"
+        },
+        "transformers": ["response-template"]
+      },
+      "priority": 5
+    },
+    {
+      "name": "CRM - Update customer (success)",
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/customers/.*"
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "status": "updated" }
+      },
+      "priority": 5
+    }
+  ]
+}

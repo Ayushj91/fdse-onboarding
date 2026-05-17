@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL — idempotency store + audit log ──────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis — token bucket for rate limiting ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── LocalStack — mocks AWS S3 + SQS locally ─────────────────────────────────
+  localstack:
+    image: localstack/localstack:3.4
+    environment:
+      SERVICES: s3,sqs,sns
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      DOCKER_HOST: unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4566/_localstack/health | grep -q '\"s3\": \"running\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── WireMock — simulates chaotic legacy CRM API ─────────────────────────────
+  wiremock:
+    image: wiremock/wiremock:3.4.2
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./wiremock:/home/wiremock
+    command: >
+      --root-dir /home/wiremock
+      --verbose
+      --global-response-templating
+
+volumes:
+  postgres_data:

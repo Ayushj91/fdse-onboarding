@@ -1,0 +1,47 @@
+{
+  "_comment": "CHAOS MODE — uncomment these to test resilience. Replace crm-stubs.json with this file.",
+  "mappings": [
+    {
+      "name": "CRM - Rate limited (429)",
+      "request": {
+        "method": "POST",
+        "urlPath": "/customers"
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "Retry-After": "2"
+        },
+        "body": "{\"error\": \"Rate limit exceeded. Try again in 2 seconds.\"}"
+      },
+      "priority": 1
+    },
+    {
+      "name": "CRM - Server error (500)",
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/customers.*"
+      },
+      "response": {
+        "status": 500,
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"error\": \"Internal server error\"}"
+      },
+      "priority": 1
+    },
+    {
+      "name": "CRM - Timeout simulation",
+      "request": {
+        "method": "PUT",
+        "urlPathPattern": "/customers/.*"
+      },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 15000,
+        "body": "{\"status\": \"updated\"}"
+      },
+      "priority": 1
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: fdse-onboarding-agent
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/onboarding
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# AWS (LocalStack for local dev)
+aws:
+  region: us-east-1
+  endpoint-override: http://localhost:4566   # Remove in production
+  s3:
+    bucket-name: onboarding-bucket
+  sqs:
+    queue-url: http://localhost:4566/000000000000/onboarding-queue
+    dlq-url: http://localhost:4566/000000000000/onboarding-dlq
+    poll-interval-ms: 1000
+    max-messages: 10
+    visibility-timeout: 60
+
+# Anthropic / Claude API
+anthropic:
+  api-key: ${ANTHROPIC_API_KEY}
+  api-url: https://api.anthropic.com/v1/messages
+  model: claude-sonnet-4-20250514
+  max-tokens: 1024
+  timeout-seconds: 30
+
+# CRM (WireMock for local dev)
+crm:
+  base-url: http://localhost:8089
+  connect-timeout-ms: 2000
+  read-timeout-ms: 10000
+
+# Resilience4j
+resilience4j:
+  retry:
+    instances:
+      crm-retry:
+        max-attempts: 5
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        randomized-wait-factor: 0.2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - com.ayush.onboarding.crm.CrmApiException
+        ignore-exceptions:
+          - com.ayush.onboarding.crm.CrmValidationException
+
+  circuitbreaker:
+    instances:
+      crm-cb:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+        record-exceptions:
+          - com.ayush.onboarding.crm.CrmApiException
+          - java.net.ConnectException
+
+# Redis rate limit key
+rate-limit:
+  crm:
+    capacity: 80          # 80% of CRM published limit
+    refill-per-second: 10
+
+logging:
+  level:
+    com.ayush.onboarding: DEBUG
+    io.github.resilience4j: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%X{correlationId}] %-5level %logger{36} - %msg%n"
